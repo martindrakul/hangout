@@ -607,6 +607,7 @@ local function createSettings()
 	settings:SetBackdropBorderColor(0.6, 0.48, 0.36, 1)
 	settings:SetSize(224, 250)
 	settings:SetFrameStrata("DIALOG")
+	settings:SetClampedToScreen(true)
 	settings:EnableMouse(true)
 	settings:Hide()
 
@@ -620,47 +621,40 @@ local function createSettings()
 
 	local rows, y = {}, -34
 
-	local function stepper(text, get, bump, step)
-		local label = settings:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-		label:SetPoint("TOPLEFT", 12, y - 4)
-		label:SetText(text)
-		local minus = CreateFrame("Button", nil, settings, "UIPanelButtonTemplate")
-		minus:SetSize(20, 18)
-		minus:SetPoint("TOPRIGHT", settings, "TOPRIGHT", -82, y)
-		minus:SetText("-")
-		local value = settings:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-		value:SetPoint("TOPRIGHT", settings, "TOPRIGHT", -42, y - 4)
-		value:SetWidth(36)
-		value:SetJustifyH("CENTER")
-		local plus = CreateFrame("Button", nil, settings, "UIPanelButtonTemplate")
-		plus:SetSize(20, 18)
-		plus:SetPoint("TOPRIGHT", settings, "TOPRIGHT", -12, y)
-		plus:SetText("+")
-		minus:SetScript("OnClick", function() bump(-step) end)
-		plus:SetScript("OnClick", function() bump(step) end)
-		rows[#rows + 1] = function() value:SetText(get()) end
-		y = y - 24
-	end
-
-	local function toggle(text, get, flip)
-		local b = CreateFrame("Button", nil, settings, "UIPanelButtonTemplate")
-		b:SetSize(200, 20)
-		b:SetPoint("TOPLEFT", 12, y)
-		b:SetScript("OnClick", function()
-			flip()
-			if settingsRefresh then settingsRefresh() end
+	local function tip(owner, title, body)
+		owner:SetScript("OnEnter", function(self)
+			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+			GameTooltip:SetText(title)
+			GameTooltip:AddLine(body, 1, 1, 1, true)
+			GameTooltip:Show()
 		end)
-		rows[#rows + 1] = function() b:SetText(("%s: |cffffffff%s|r"):format(text, get())) end
-		y = y - 23
+		owner:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	end
 
-	local function colorRow(text)
+	-- An invisible strip behind each row, so hovering the label explains it too.
+	local function hoverRow(title, body)
+		local hover = CreateFrame("Button", nil, settings)
+		hover:SetPoint("TOPLEFT", 8, y + 2)
+		hover:SetPoint("TOPRIGHT", -8, y + 2)
+		hover:SetHeight(22)
+		hover:SetFrameLevel((settings:GetFrameLevel() or 0) + 1)
+		tip(hover, title, body)
+		return hover
+	end
+
+	local function lift(button)
+		button:SetFrameLevel((settings:GetFrameLevel() or 0) + 5)
+	end
+
+	local function colorRow(text, body)
+		hoverRow(text, body)
 		local label = settings:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 		label:SetPoint("TOPLEFT", 12, y - 4)
 		label:SetText(text)
 		local swatch = CreateFrame("Button", nil, settings)
 		swatch:SetSize(40, 16)
 		swatch:SetPoint("TOPRIGHT", settings, "TOPRIGHT", -12, y - 1)
+		lift(swatch)
 		swatch:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 		local border = swatch:CreateTexture(nil, "BACKGROUND")
 		if border then
@@ -673,42 +667,102 @@ local function createSettings()
 		swatch:SetScript("OnClick", function(_, button)
 			if button == "RightButton" then UI.resetColor() else UI.chooseColor() end
 		end)
-		swatch:SetScript("OnEnter", function(self)
-			GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
-			GameTooltip:SetText("Hangout colour")
-			GameTooltip:AddLine("Click to pick, right-click for the original orange.", 1, 1, 1, true)
-			GameTooltip:Show()
-		end)
-		swatch:SetScript("OnLeave", function() GameTooltip:Hide() end)
+		tip(swatch, text, body)
 		rows[#rows + 1] = function()
 			if fill and fill.SetColorTexture then fill:SetColorTexture(ns.R, ns.G, ns.B, 1) end
 		end
 		y = y - 24
 	end
 
-	colorRow("Colour")
-	stepper("Text size", function() return tostring(UI.fontSize()) end,
+	local function stepper(text, body, get, bump, step)
+		hoverRow(text, body)
+		local label = settings:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+		label:SetPoint("TOPLEFT", 12, y - 4)
+		label:SetText(text)
+		local minus = CreateFrame("Button", nil, settings, "UIPanelButtonTemplate")
+		minus:SetSize(20, 18)
+		minus:SetPoint("TOPRIGHT", settings, "TOPRIGHT", -82, y)
+		minus:SetText("-")
+		lift(minus)
+		local value = settings:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+		value:SetPoint("TOPRIGHT", settings, "TOPRIGHT", -42, y - 4)
+		value:SetWidth(36)
+		value:SetJustifyH("CENTER")
+		local plus = CreateFrame("Button", nil, settings, "UIPanelButtonTemplate")
+		plus:SetSize(20, 18)
+		plus:SetPoint("TOPRIGHT", settings, "TOPRIGHT", -12, y)
+		plus:SetText("+")
+		lift(plus)
+		minus:SetScript("OnClick", function() bump(-step) end)
+		plus:SetScript("OnClick", function() bump(step) end)
+		tip(minus, text, body)
+		tip(plus, text, body)
+		rows[#rows + 1] = function() value:SetText(get()) end
+		y = y - 24
+	end
+
+	local function toggle(text, body, get, flip)
+		local b = CreateFrame("Button", nil, settings, "UIPanelButtonTemplate")
+		b:SetSize(200, 20)
+		b:SetPoint("TOPLEFT", 12, y)
+		lift(b)
+		b:SetScript("OnClick", function()
+			flip()
+			if settingsRefresh then settingsRefresh() end
+		end)
+		tip(b, text, body)
+		rows[#rows + 1] = function() b:SetText(("%s: |cffffffff%s|r"):format(text, get())) end
+		y = y - 23
+	end
+
+	colorRow("Colour",
+		"The colour Hangout draws itself in: room lines, room names in your chat, the tabs and the minimized box. Click to pick one, right-click for the original orange.")
+	stepper("Text size",
+		"How big the text is in the message pane and the typing box, from 8 to 24. It starts out at whatever your chat font uses.",
+		function() return tostring(UI.fontSize()) end,
 		function(d) UI.setFontSize(UI.fontSize() + d) end, 1)
-	stepper("Background", function() return ("%d%%"):format(math.floor(((ns.db.opacity or 0.85) * 100) + 0.5)) end,
+	stepper("Background",
+		"How solid the window background is. 10% is nearly see-through, 100% is solid. The minimized box follows it.",
+		function() return ("%d%%"):format(math.floor(((ns.db.opacity or 0.85) * 100) + 0.5)) end,
 		function(d) UI.setOpacity((ns.db.opacity or 0.85) + d) end, 0.05)
-	toggle("Lines show up in", function() return ns.db.mode == "inline" and "your chat" or "the window" end,
+	toggle("Lines show up in",
+		"the window: room lines stay in the Hangout window. your chat: no window at all, room lines appear in your normal chat written like a channel line, and you talk with /hh.",
+		function() return ns.db.mode == "inline" and "your chat" or "the window" end,
 		function() UI.setMode(ns.db.mode == "inline" and "window" or "inline") end)
-	toggle("Whisper sound", function() return ns.db.sound and "on" or "off" end,
+	toggle("Whisper sound",
+		"Plays the whisper sound when a line arrives in a room you aren't looking at. At most once every 8 seconds, however busy the room gets.",
+		function() return ns.db.sound and "on" or "off" end,
 		function() ns.db.sound = not ns.db.sound end)
-	toggle("Twitch emotes", function() return ns.db.emotes and "on" or "off" end,
+	toggle("Twitch emotes",
+		"Turns emote words into pictures in room lines, using Twitch Emotes if you have it. Off shows the plain word instead.",
+		function() return ns.db.emotes and "on" or "off" end,
 		function() ns.db.emotes = not ns.db.emotes end)
-	toggle("Enter opens Hangout", function() return ns.db.enterKey and "on" or "off" end,
+	toggle("Fix the emote picker",
+		"Twitch Emotes rebuilds your whole line when you pick an emote and gets it wrong, losing what you typed before it or repeating it. This puts the line back. Turn it off if it ever gets in the way.",
+		function() return ns.db.emoteFix and "on" or "off" end,
+		function() ns.db.emoteFix = not ns.db.emoteFix end)
+	toggle("Enter opens Hangout",
+		"After you talk in the room, Enter opens the Hangout box instead of the normal chat box. Talking anywhere else gives the key straight back, and so does closing the window.",
+		function() return ns.db.enterKey and "on" or "off" end,
 		function()
 			ns.db.enterKey = not ns.db.enterKey
 			if UI.applyEnterKey then UI.applyEnterKey() end
 		end)
-	toggle("Keep typing after sending", function() return ns.db.keepTyping and "on" or "off" end,
+	toggle("Keep typing after sending",
+		"on: the cursor stays in the box after you send, so you can keep typing. off: the box steps back out like the normal chat box, and Enter opens it again for the next line.",
+		function() return ns.db.keepTyping and "on" or "off" end,
 		function() ns.db.keepTyping = not ns.db.keepTyping end)
-	toggle("Unread badges", function() return ns.db.alerts.badge and "on" or "off" end,
+	toggle("Unread badges",
+		"Shows how many lines you haven't read on each room tab, and on the minimized box.",
+		function() return ns.db.alerts.badge and "on" or "off" end,
 		function() ns.db.alerts.badge = not ns.db.alerts.badge layoutTabs() end)
-	toggle("Flash taskbar", function() return ns.db.alerts.taskbar and "on" or "off" end,
+	toggle("Flash taskbar",
+		"Blinks WoW in the Windows taskbar when a line arrives while you're in another window. It does nothing while WoW is the window you're looking at.",
+		function() return ns.db.alerts.taskbar and "on" or "off" end,
 		function() ns.db.alerts.taskbar = not ns.db.alerts.taskbar end)
-	toggle("Copy lines to chat", function() return ns.db.echo end,
+	toggle("Copy lines to chat",
+		"auto: room lines are copied into your main chat while you can't see the room. always: copied even when the window is open. never: not copied at all.",
+		function() return ns.db.echo end,
 		function()
 			ns.db.echo = (ns.db.echo == "auto" and "always") or (ns.db.echo == "always" and "never") or "auto"
 		end)

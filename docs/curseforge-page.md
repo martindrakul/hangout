@@ -37,7 +37,7 @@ Hangout skips channels completely. Every line you type goes straight to each fri
 
 - **Several rooms, one tab each:** up to eight, each with its own members and history. Click a tab or press Tab to switch, and unread lines show up as a count on the tab.
 - **Its own window, or part of your chat:** keep rooms in the Hangout window, or `/ho mode inline` to drop the window and write room lines into your normal chat like a channel line, `[Night Owls] Boa Woa: raid at 8`, with the room name clickable.
-- **Yours to set up:** a settings panel for the colour (Blizzard's own colour picker), text size, background opacity, sounds and alerts, all also available as commands.
+- **Yours to set up:** a settings panel for the colour (Blizzard's own colour picker), text size, background opacity, sounds and alerts. Every row explains itself on hover, and each one is also a command.
 - **Enter picks up where you left off:** once the room is where you last talked, Enter opens the Hangout box, and goes back to normal chat the moment you talk anywhere else.
 - **Minimizes out of the way:** the window folds into a small box you can park anywhere. It lights up and counts what you haven't read when someone talks, and a click brings the window back.
 - **Slash commands work in its box:** `/wave`, `/reload`, another addon's commands, all exactly as they do in the normal chat box.

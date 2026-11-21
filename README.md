@@ -72,12 +72,12 @@ A note on the numbers real channels have, like `[8. peepos]`: Hangout can't have
 
 ## Settings
 
-The gear button in the title bar opens a small panel with everything in it, and `/ho settings` does the same. Each one is also a command if you prefer typing:
+The gear button in the title bar opens a small panel with everything in it, and `/ho settings` does the same. Hover any row to see what it does and what changes when you turn it on. Each one is also a command if you prefer typing:
 
 - **Colour:** click the swatch for Blizzard's colour picker, or `/ho color ffb873`. It colours room lines, room names, the tabs and the minimized box. Right-click the swatch (or `/ho color reset`) for the original orange.
 - **Text size:** `/ho font 14`, anything from 8 to 24. Starts from whatever your chat font uses.
 - **Background:** `/ho opacity 70` makes the window 70% solid, down to 10% for nearly see-through. The minimized box follows it.
-- **Whisper sound**, **Twitch emotes**, **Enter opens Hangout**, **keep typing after sending**, **unread badges**, **taskbar flash**, and **copying lines to chat**.
+- **Lines show up in** (the window or your normal chat), **whisper sound**, **Twitch emotes**, **fix the emote picker**, **Enter opens Hangout**, **keep typing after sending**, **unread badges**, **flash taskbar**, and **copy lines to chat**.
 
 ### Alerts
 

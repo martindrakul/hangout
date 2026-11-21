@@ -76,6 +76,8 @@ local function newObject(client, kind)
 	function o:CreateTexture() return newObject(client, "Texture") end
 	function o:SetAlpha(a) self._alpha = a end
 	function o:GetStringWidth() return 40 end
+	function o:GetFrameLevel() return self._level or 1 end
+	function o:SetFrameLevel(level) self._level = level end
 	function o:SetFont(file, size, flags) self._font = { file, size, flags } end
 	function o:GetFont()
 		local f = self._font or { "Fonts\FRIZQT__.TTF", 14, "" }
@@ -108,7 +110,7 @@ end
 ---------------------------------------------------------------- client factory
 local function newClient(first, last, class, withTE, seed)
 	local c = { withTE = withTE, name = first .. " " .. last, online = true, lockdown = false, instance = false,
-		prefixes = {}, registered = {}, filters = {}, printed = {}, overrides = {} }
+		prefixes = {}, registered = {}, filters = {}, printed = {}, overrides = {}, frames = {} }
 	c.key = c.name:lower()
 	clients[c.key] = c
 
@@ -246,6 +248,8 @@ local function newClient(first, last, class, withTE, seed)
 	env.CreateFrame = function(kind, name, parent, template)
 		local o = newObject(c, kind)
 		o._name = name
+		o._parent = parent
+		c.frames[#c.frames + 1] = o
 		if kind == "Frame" and name == "HangoutFrame" then o._shown = true end
 		if kind == "ScrollingMessageFrame" then c.pane = o end
 		if name then env[name] = o end
@@ -715,6 +719,22 @@ C.colorInfo.swatchFunc()
 check(C.ns.HEX == "ffff0000", "and what you pick in it is applied")
 C.colorInfo.cancelFunc()
 check(C.ns.HEX == "ffffb873", "cancelling puts back what you had")
+
+print("every setting says what it does")
+C.ns.UI.settings()
+local panel = C.env.HangoutSettings
+local explained, bare = 0, 0
+for _, f in ipairs(C.frames) do
+	if f._parent == panel and f._scripts.OnEnter then
+		C.env.GameTooltip._text = nil
+		f._scripts.OnEnter(f)
+		local text = C.env.GameTooltip._text
+		if text and text ~= "" then explained = explained + 1 else bare = bare + 1 end
+	end
+end
+check(bare == 0, ("nothing in the panel is left unexplained (%d bare)"):format(bare))
+check(explained >= 15, ("every row and its buttons explain themselves (%d of them)"):format(explained))
+C.ns.UI.settings()
 
 print("a stray slash command never reaches the room")
 slash(C, "HANGOUTSAY", "/hh kekw")
