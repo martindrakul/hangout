@@ -1,0 +1,43 @@
+name: Release
+
+# Push a tag like v1.2.0 and this builds Hangout-v1.2.0.zip, uploads it to
+# CurseForge (tagged for WoW Forever, with CHANGELOG.md as the notes) and adds it
+# to a GitHub release. Tags with "alpha" or "beta" in them go up as alpha/beta.
+#
+# Needs, in the repo's Settings > Secrets and variables > Actions:
+#   secret   CF_API_TOKEN            token from https://authors.curseforge.com/#/settings/api-tokens
+#   variable CURSEFORGE_PROJECT_ID   the number in "About Project" on your CurseForge page
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Check CurseForge settings
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CURSEFORGE_PROJECT_ID: ${{ vars.CURSEFORGE_PROJECT_ID }}
+        run: |
+          [ -n "$CF_API_TOKEN" ] || { echo "::error::Add the CF_API_TOKEN secret first (see the top of release.yml)."; exit 1; }
+          [[ "$CURSEFORGE_PROJECT_ID" =~ ^[0-9]+$ ]] || { echo "::error::Add the CURSEFORGE_PROJECT_ID variable first (see the top of release.yml)."; exit 1; }
+
+      - name: Package and upload
+        uses: BigWigsMods/packager@v2.7.0
+        with:
+          args: -p ${{ vars.CURSEFORGE_PROJECT_ID }}
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,24 @@
+name: Test
+
+# Syntax-checks every Lua file and runs the offline simulation in tests/sim.lua,
+# which plays several clients against a fake server.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+
+jobs:
+  sim:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Lua 5.1
+        run: sudo apt-get update && sudo apt-get install -y lua5.1
+
+      - name: Syntax check
+        run: for f in *.lua; do luac5.1 -p "$f"; done
+
+      - name: Simulation
+        run: lua5.1 tests/sim.lua .

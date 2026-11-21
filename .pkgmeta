@@ -1,0 +1,13 @@
+package-as: Hangout
+
+enable-nolib-creation: no
+
+# Use our own changelog on CurseForge instead of a list of commits.
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
+
+# Repo-only files that don't belong in the addon zip.
+ignore:
+  - tests
+  - docs

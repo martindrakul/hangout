@@ -1,0 +1,8 @@
+<Bindings>
+	<Binding name="HANGOUT_TOGGLE" header="HANGOUT" category="ADDONS">
+		Hangout_Toggle()
+	</Binding>
+	<Binding name="HANGOUT_FOCUS" category="ADDONS">
+		Hangout_Focus()
+	</Binding>
+</Bindings>

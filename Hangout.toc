@@ -1,0 +1,17 @@
+## Interface: 16001
+## Title: Hangout
+## Notes: A chat room for you and your friends that doesn't rely on custom chat channels. Item and quest links and Twitch Emotes work.
+## Author: Martin
+## Version: @project-version@
+## IconTexture: Interface\AddOns\Hangout\Media\Icon
+## SavedVariables: HangoutDB
+## SavedVariablesPerCharacter: HangoutCharDB
+## OptionalDeps: TwitchEmotes
+## X-License: MIT
+
+Core.lua
+Comm.lua
+Room.lua
+UI.lua
+Channels.lua
+Commands.lua
