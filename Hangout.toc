@@ -1,6 +1,6 @@
 ## Interface: 16001
 ## Title: Hangout
-## Notes: A chat room for you and your friends that doesn't rely on custom chat channels. Item and quest links and Twitch Emotes work.
+## Notes: Chat rooms for you and your friends that don't rely on custom chat channels. Several rooms as tabs, in a window you can minimize or inline in your normal chat.
 ## Author: Martin
 ## Version: @project-version@
 ## IconTexture: Interface\AddOns\Hangout\Media\Icon

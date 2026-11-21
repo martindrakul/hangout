@@ -1,4 +1,4 @@
--- Hangout: a chat room for friends on WoW Forever.
+-- Hangout: chat rooms for friends on WoW Forever.
 --
 -- Custom chat channels (/join name) are unreliable on Forever: players on different
 -- internal servers end up in separate copies of the same channel, and addon messages
@@ -17,21 +17,78 @@ local function tocVersion()
 end
 
 ns.VERSION = tocVersion()
-ns.HEX = "ffffb873"                 -- room colour (soft orange)
-ns.R, ns.G, ns.B = 1.0, 0.72, 0.45
+
+local DEFAULT_COLOR = { 1.0, 0.72, 0.45 }   -- soft orange
+ns.DEFAULT_COLOR = DEFAULT_COLOR
+ns.HEX = "ffffb873"
+ns.R, ns.G, ns.B = DEFAULT_COLOR[1], DEFAULT_COLOR[2], DEFAULT_COLOR[3]
+
+local function clamp01(v, fallback)
+	v = tonumber(v)
+	if not v then return fallback end
+	if v < 0 then return 0 end
+	if v > 1 then return 1 end
+	return v
+end
+
+-- The one colour Hangout draws itself in: room lines, room names, tabs, the little box.
+function ns.setColor(r, g, b)
+	ns.R = clamp01(r, DEFAULT_COLOR[1])
+	ns.G = clamp01(g, DEFAULT_COLOR[2])
+	ns.B = clamp01(b, DEFAULT_COLOR[3])
+	ns.HEX = ("ff%02x%02x%02x"):format(
+		math.floor(ns.R * 255 + 0.5), math.floor(ns.G * 255 + 0.5), math.floor(ns.B * 255 + 0.5))
+	if ns.db then ns.db.color = { ns.R, ns.G, ns.B } end
+	return ns.R, ns.G, ns.B
+end
 
 local defaults = {
-	echo = "auto",   -- "auto": copy room lines to the main chat while the window is closed
-	sound = true,    -- whisper sound for new lines while the window is closed
-	emotes = true,   -- run Twitch Emotes (and other chat filters) over room lines
+	-- "window": the Hangout window; "inline": room lines in your normal chat
+	mode = "window",
+	echo = "auto",     -- "auto": copy room lines to the main chat while the window is closed
+	sound = true,      -- whisper sound for new lines while the room isn't in front of you
+	emotes = true,     -- run Twitch Emotes (and other chat filters) over room lines
+	emoteFix = true,   -- repair the line the Twitch Emotes picker rebuilds wrongly
+	enterKey = true,   -- Enter opens the room box when the room is where you last talked
+	keepTyping = false, -- leave the cursor in the box after sending instead of stepping out
+	opacity = 0.85,    -- how solid the window background is
+	color = { 1.0, 0.72, 0.45 },  -- the colour Hangout draws itself in
+	fontSize = nil,    -- nil: whatever your chat font uses
+	alerts = {
+		taskbar = false,  -- flash WoW in the taskbar while you're in another window
+		badge = true,     -- unread count on the room's tab
+	},
 	debug = false,
 	shown = false,
+	minimized = false,  -- folded into the little box
+	welcomed = false,  -- the one-time "type /ho help" greeting
 }
 
 local function copyDefaults(dst, src)
 	for k, v in pairs(src) do
-		if dst[k] == nil then dst[k] = v end
+		if type(v) == "table" then
+			if type(dst[k]) ~= "table" then dst[k] = {} end
+			copyDefaults(dst[k], v)
+		elseif dst[k] == nil then
+			dst[k] = v
+		end
 	end
+end
+
+-- 1.1.0 stored one room in `room` with one shared `history`. Rooms are tabs now, so
+-- move that into the keyed layout: rooms by id, a history each, and a tab order.
+local function migrate(char)
+	char.rooms = char.rooms or {}
+	char.order = char.order or {}
+	char.histories = char.histories or {}
+	if type(char.room) == "table" and char.room.id then
+		local id = char.room.id
+		char.rooms[id] = char.room
+		char.histories[id] = char.history or {}
+		char.order[#char.order + 1] = id
+		char.active = id
+	end
+	char.room, char.history = nil, nil
 end
 
 -- WoW: under Midnight-era rules some event arguments are "secret" and can't be read.
@@ -166,8 +223,10 @@ ns.on("ADDON_LOADED", function(name)
 	HangoutDB = HangoutDB or {}
 	copyDefaults(HangoutDB, defaults)
 	HangoutCharDB = HangoutCharDB or {}
-	HangoutCharDB.history = HangoutCharDB.history or {}
+	migrate(HangoutCharDB)
 	ns.db, ns.char = HangoutDB, HangoutCharDB
+	local c = ns.db.color
+	if type(c) == "table" then ns.setColor(c[1], c[2], c[3]) end
 	ns.fire("HANGOUT_INIT")
 end)
 
