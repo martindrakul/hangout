@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.1
+
+- Hangout no longer refuses to send just because the client flags chat as restricted. It tries, and only backs off when the server actually turns the message away, so anything the restriction doesn't really cover now gets through. The notice about being blocked appears only when a message was genuinely refused.
+
+- The chat lockdown notice now says what's actually happening: battlegrounds and arenas say so instead of calling it an encounter, both say when your line will go out, and it isn't repeated for every line you type.
+
 ## 1.2.0
 
 - Several rooms at once, with a tab each. Click a tab to switch, press Tab in the message box to cycle, or `/ho switch <room>`. Up to eight, each with its own members and history.

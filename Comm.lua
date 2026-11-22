@@ -42,6 +42,16 @@ local TEST_LINK = "|cffffffff|Hitem:6948::::::::1:::::::|h[Hearthstone]|h|r"
 
 Comm.lockedOut = false
 
+-- Let the server be the judge: we only count as locked out once a send is actually
+-- refused, not because a flag says chat might be restricted.
+local function lockOut(t, pauseFor)
+	if not Comm.lockedOut then
+		Comm.lockedOut = true
+		if Comm.onLockdown then Comm.onLockdown() end
+	end
+	pausedUntil = t + pauseFor
+end
+
 local function inInstance()
 	local inside = IsInInstance()
 	return inside and true or false
@@ -118,11 +128,6 @@ function Comm.pump()
 	if t < pausedUntil or not queue[1] then return end
 	local sent = 0
 	while queue[1] and sent < 25 do
-		if ns.lockdown() then
-			Comm.lockedOut = true
-			pausedUntil = t + 1
-			return
-		end
 		local item = queue[1]
 		if not takeToken(item.prefix) then
 			pausedUntil = t + 0.5
@@ -137,8 +142,7 @@ function Comm.pump()
 			pausedUntil = t + 1
 			return
 		elseif result == R_LOCKDOWN then
-			Comm.lockedOut = true
-			pausedUntil = t + 2
+			lockOut(t, 2)
 			return
 		elseif result == R_OFFLINE then
 			Comm.dropTarget(item.key)

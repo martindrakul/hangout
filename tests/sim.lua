@@ -132,7 +132,9 @@ local function newClient(first, last, class, withTE, seed)
 	env.UnitIsPlayer = function(unit) return unit == "target" and c.target ~= nil end
 	env.UnitClass = function() return class:sub(1, 1) .. class:sub(2):lower(), class end
 	env.RegionalUniqueNamesEnabled = function() return true end
-	env.IsInInstance = function() return c.instance, c.instance and "party" or "none" end
+	env.IsInInstance = function()
+		return c.instance, c.instance and (c.instanceType or "party") or "none"
+	end
 	env.IsShiftKeyDown = function() return false end
 	env.RAID_CLASS_COLORS = { MAGE = { colorStr = "ff3fc7eb" }, WARRIOR = { colorStr = "ffc69b6d" } }
 	env.ERR_CHAT_PLAYER_NOT_FOUND_S = "No player named '%s' is currently playing."
@@ -227,7 +229,10 @@ local function newClient(first, last, class, withTE, seed)
 			if c.loggedBroken then return 0 end -- accepted, never delivered
 			return server.send(c, p, text, kind, target, true)
 		end,
-		InChatMessagingLockdown = function() return c.lockdown end,
+		InChatMessagingLockdown = function()
+			if c.lockdownFlag ~= nil then return c.lockdownFlag end
+			return c.lockdown
+		end,
 	}
 	env.ChatFrameUtil = {
 		AddMessageEventFilter = function(event, fn)
@@ -508,6 +513,43 @@ check(not (lastGot(B).text == "pulling now"), "nothing sent during lockdown")
 A.lockdown = false
 advance(2)
 check(lastGot(B).text == "pulling now", "queued line goes out after lockdown")
+
+print("a restricted-chat flag on its own doesn't stop us")
+C.lockdownFlag = true      -- the client says chat is restricted...
+C.lockdown = false         -- ...but the server still takes our whispers
+C.notes = {}
+slash(C, "HANGOUTSAY", "can you hear me")
+advance(2)
+local heardIn = C.ns.Room.get().name
+check(lastGotIn(A, heardIn) and lastGotIn(A, heardIn).text == "can you hear me",
+	"the line goes out when the server allows it")
+local complained = false
+for _, n in ipairs(C.notes) do if n:find("blocking addon chat", 1, true) then complained = true end end
+check(not complained, "and nothing is claimed to be blocked")
+C.lockdownFlag = nil
+
+print("chat lockdown explains itself properly")
+C.notes = {}
+C.lockdown, C.instance, C.instanceType = true, true, "pvp"
+slash(C, "HANGOUTSAY", "go left")
+advance(3)
+local lockNote = C.notes[#C.notes] or ""
+check(lockNote:find("battleground", 1, true) ~= nil, "a battleground says so, not 'this encounter'")
+check(lockNote:find("when the match ends", 1, true) ~= nil, "and says when the line goes out")
+local noteCount = #C.notes
+slash(C, "HANGOUTSAY", "go right")
+advance(3)
+check(#C.notes == noteCount, "and it is not repeated for every line")
+C.instanceType = "raid"
+C.ns.Room.get()
+advance(70)
+C.notes = {}
+C.ns.Comm.lockedOut = false
+slash(C, "HANGOUTSAY", "pulling")
+advance(3)
+check((C.notes[#C.notes] or ""):find("during this fight", 1, true) ~= nil, "a raid encounter says the fight instead")
+C.lockdown, C.instance, C.instanceType = false, false, nil
+advance(3)
 
 print("inside an instance (throttled prefixes)")
 A.instance = true

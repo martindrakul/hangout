@@ -28,6 +28,7 @@ local peers = {}          -- roomId -> key -> { online, seen, ver, probedAt }
 local invites = {}        -- roomId -> key -> { n, at, reported }
 local seenMessages = {}   -- "<roomId>/<key>/<msgId>" -> GetTime()
 local aloneNoticeAt = {}  -- roomId -> when we last said nobody else is online
+local lockNoticeAt = {}   -- roomId -> when we last explained the chat lockdown
 local lastHeartbeat, lastReprobe, lastSayProbe = 0, 0, 0
 
 -- Rooms and the active tab ---------------------------------------------------------
@@ -428,6 +429,22 @@ ns.Comm.listen(ns.Comm.PREFIX_MSG, function(body, sender, key)
 	addLine(id, sender, e.c, text, ns.now(), false)
 end)
 
+-- Said when the server actually turns a message away, not merely because the client
+-- flags chat as restricted: some of what it covers still lets our whispers through.
+ns.Comm.onLockdown = function()
+	local r = Room.get()
+	if not r then return end
+	local t = GetTime()
+	if t - (lockNoticeAt[r.id] or 0) < 60 then return end
+	lockNoticeAt[r.id] = t
+	local _, kind = IsInInstance()
+	if kind == "pvp" or kind == "arena" then
+		ns.UI.note(r.id, "WoW is blocking addon chat in this battleground. Your line goes out when the match ends.")
+	else
+		ns.UI.note(r.id, "WoW is blocking addon chat during this fight. Your line goes out when it ends.")
+	end
+end
+
 -- A whisper that bounced means they're offline everywhere, not just in one room.
 ns.Comm.onOffline = function(key)
 	for _, r in ipairs(Room.ordered()) do
@@ -610,9 +627,6 @@ function Room.say(text, id)
 	if #targets == 0 and t - (aloneNoticeAt[r.id] or 0) > 60 then
 		aloneNoticeAt[r.id] = t
 		ns.UI.note(r.id, ("Nobody else in %s is online right now."):format(r.name))
-	end
-	if ns.lockdown() then
-		ns.UI.note(r.id, "Chat is locked during this encounter. Your message goes out when it ends.")
 	end
 end
 
