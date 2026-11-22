@@ -131,6 +131,6 @@ The gear button in the title bar opens a small panel with everything in it, and 
 ## Limits
 
 - Friends need to be on the same faction. Forever keeps Horde and Alliance chat apart.
-- **Boss fights, battlegrounds and arenas:** WoW itself can block addons from sending messages during an encounter and inside instanced PvP. Hangout always tries anyway and only backs off when the server actually refuses, so whatever the block doesn't cover still gets through. When it is refused, your lines wait and go out when the fight or the match ends, and lines from friends outside still arrive, so you can read but not reply. Nothing Hangout can do about that part: the block is the game's.
+- **Boss fights, battlegrounds and arenas:** WoW itself can block addons from sending messages during an encounter and inside instanced PvP. Hangout always tries anyway and only backs off when the server actually refuses, so whatever the block doesn't cover still gets through. When it is refused, your lines wait and go out when the fight or the match ends, and lines from friends outside still arrive, so you can read but not reply. Your member list stays as it was rather than emptying out, because the silence is the block's, not theirs. Nothing Hangout can do about that part: the block is the game's.
 - Trial and Veteran accounts can't send addon messages, so they can read but not talk.
 - Friends who log in show up after a few seconds. If someone doesn't, typing in the room makes Hangout check on them again. Otherwise it checks every 5 minutes.

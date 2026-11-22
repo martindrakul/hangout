@@ -1245,11 +1245,12 @@ function renderRoom(id)
 		messages:AddMessage(("|cff9d9d9dNothing said in %s yet. Say hello.|r"):format(r and r.name or "here"))
 		return
 	end
-	messages:BackFillMessage("|cff6f6f6f---- earlier ----|r")
 	for i = #h, 1, -1 do
 		local e = h[i]
 		messages:BackFillMessage(formatLine(e.n, e.c, e.x, e.t), ns.R * 0.8, ns.G * 0.8, ns.B * 0.8)
 	end
+	-- Last, so it ends up above the lines it describes: back-filling builds upwards.
+	messages:BackFillMessage("|cff6f6f6f---- earlier ----|r")
 end
 
 -- Is this room in front of the player right now?
@@ -1287,7 +1288,11 @@ function UI.refresh()
 		local n = ns.Room.onlineCount(r.id)
 		local who = n == 0 and "nobody else online" or (n == 1 and "1 friend online" or (n .. " friends online"))
 		title:SetText(("|c%s%s|r"):format(ns.HEX, r.name))
-		subtitle:SetText(("|cff9d9d9d%s|r"):format(who))
+		if ns.Comm and ns.Comm.lockedOut then
+			subtitle:SetText(("|cff9d9d9d%s|r  |cffff7777- chat blocked, lines are waiting|r"):format(who))
+		else
+			subtitle:SetText(("|cff9d9d9d%s|r"):format(who))
+		end
 	end
 	if inviteButton then
 		if r then inviteButton:Enable() else inviteButton:Disable() end

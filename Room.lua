@@ -437,12 +437,22 @@ ns.Comm.onLockdown = function()
 	local t = GetTime()
 	if t - (lockNoticeAt[r.id] or 0) < 60 then return end
 	lockNoticeAt[r.id] = t
+	ns.UI.refresh()
 	local _, kind = IsInInstance()
 	if kind == "pvp" or kind == "arena" then
 		ns.UI.note(r.id, "WoW is blocking addon chat in this battleground. Your line goes out when the match ends.")
 	else
 		ns.UI.note(r.id, "WoW is blocking addon chat during this fight. Your line goes out when it ends.")
 	end
+end
+
+ns.Comm.onUnlocked = function()
+	local r = Room.get()
+	if r and lockNoticeAt[r.id] then
+		lockNoticeAt[r.id] = nil
+		ns.UI.note(r.id, "Chat is working again. Anything you typed has gone out.")
+	end
+	ns.UI.refresh()
 end
 
 -- A whisper that bounced means they're offline everywhere, not just in one room.
@@ -635,9 +645,13 @@ local function tick()
 	if #list == 0 then return end
 	local t = GetTime()
 	local beat = t - lastHeartbeat >= HEARTBEAT
+	-- While the game is refusing our messages we can't say hello, so our friends stop
+	-- hearing from us and stop answering. The silence is ours, not theirs: don't take
+	-- anyone offline over it, or a long battleground empties the room.
+	local mute = ns.Comm.lockedOut
 	for _, r in ipairs(list) do
 		for k, p in pairs(peerTable(r.id)) do
-			if p.online and t - (p.seen or 0) > TIMEOUT then Room.markOffline(k, r.id) end
+			if p.online and not mute and t - (p.seen or 0) > TIMEOUT then Room.markOffline(k, r.id) end
 		end
 		if beat then
 			for _, name in ipairs(onlineNames(r)) do hello(r, name, false) end

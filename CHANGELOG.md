@@ -2,9 +2,13 @@
 
 ## 1.2.1
 
-- Hangout no longer refuses to send just because the client flags chat as restricted. It tries, and only backs off when the server actually turns the message away, so anything the restriction doesn't really cover now gets through. The notice about being blocked appears only when a message was genuinely refused.
-
-- The chat lockdown notice now says what's actually happening: battlegrounds and arenas say so instead of calling it an encounter, both say when your line will go out, and it isn't repeated for every line you type.
+- Hangout no longer refuses to send just because the client flags chat as restricted. It tries, and only backs off when the server actually turns the message away, so anything the restriction doesn't really cover now gets through.
+- The notice about chat being blocked only appears when a message was genuinely refused, says what is actually happening (a battleground says so instead of calling it an encounter), says when your line will go out, and isn't repeated for every line you type.
+- While the game is refusing our messages the window says so ("chat blocked, lines are waiting") instead of looking idle, and says when they have gone out.
+- Held lines go out the moment the block lifts, rather than up to two seconds later, by watching for leaving combat, the encounter ending and zoning out.
+- A battleground no longer empties the room. While the game refuses our messages we can't say hello either, so friends stopped hearing from us, stopped answering, and everyone timed each other out. Nobody is taken offline over silence we caused.
+- The "earlier" marker now sits above the lines it describes instead of in the middle of them.
+- `/ho status` tells the two apart: whether the client flags chat as restricted, and whether anything is actually being refused.
 
 ## 1.2.0
 

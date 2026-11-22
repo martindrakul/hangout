@@ -161,8 +161,24 @@ function Comm.pump()
 			failed(item, result)
 		end
 	end
-	if not queue[1] then Comm.lockedOut = false end
+	if not queue[1] and Comm.lockedOut then
+		Comm.lockedOut = false
+		if Comm.onUnlocked then Comm.onUnlocked() end
+	end
 end
+
+-- The block lifts on its own, so don't sit out the retry wait: these are the moments
+-- it tends to end.
+local function nudge()
+	if not Comm.lockedOut then return end
+	pausedUntil = 0
+	Comm.pump()
+end
+
+ns.on("PLAYER_REGEN_ENABLED", nudge)
+ns.on("ENCOUNTER_END", nudge)
+ns.on("PLAYER_ENTERING_WORLD", nudge)
+ns.on("ZONE_CHANGED_NEW_AREA", nudge)
 
 -- Queue `payload` for `target` ("First Last"). Long payloads are chunked as
 -- "<id>:<part>:<total>:<data>".

@@ -528,6 +528,44 @@ for _, n in ipairs(C.notes) do if n:find("blocking addon chat", 1, true) then co
 check(not complained, "and nothing is claimed to be blocked")
 C.lockdownFlag = nil
 
+print("held lines go out the moment the block lifts")
+C.lockdown = true
+C.notes = {}
+local heldMark = #A.got
+slash(C, "HANGOUTSAY", "held line")
+advance(6)
+check(C.ns.Comm.lockedOut, "we know we are blocked")
+check(#A.got == heldMark, "and nothing reached anyone yet")
+C.lockdown = false
+C.fire("PLAYER_REGEN_ENABLED")
+advance(1)
+check(not C.ns.Comm.lockedOut, "the block clears without waiting out the retry")
+local heldRoom = C.ns.Room.get().name
+check(lastGotIn(A, heldRoom) and lastGotIn(A, heldRoom).text == "held line", "and the held line went out")
+local toldBack = false
+for _, n in ipairs(C.notes) do if n:find("gone out", 1, true) then toldBack = true end end
+check(toldBack, "and we are told it did")
+
+print("a chat block doesn't empty the room")
+C.lockdown, A.lockdown = true, true
+slash(C, "HANGOUTSAY", "anyone there")
+advance(6)
+check(C.ns.Comm.lockedOut, "C knows the game is refusing its messages")
+local withA = C.ns.Room.activeId()
+advance(220)   -- well past the 150s silence timeout
+check(C.ns.Room.isOnline("moorwyn stormgaard", withA), "friends stay online while we are the ones who cannot talk")
+C.lockdown, A.lockdown = false, false
+advance(10)
+check(C.ns.Room.isOnline("moorwyn stormgaard", withA), "and still afterwards")
+
+print("the earlier marker sits above the lines it describes")
+C.ns.UI.window()
+C.pane._lines = {}
+C.ns.UI.selectRoom(withA)
+local lines = C.pane._lines
+check(#lines > 1, "history was drawn")
+check((lines[#lines] or ""):find("earlier", 1, true) ~= nil, "the marker is the oldest line, not buried in the middle")
+
 print("chat lockdown explains itself properly")
 C.notes = {}
 C.lockdown, C.instance, C.instanceType = true, true, "pvp"
