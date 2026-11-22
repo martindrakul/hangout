@@ -159,8 +159,11 @@ local function status()
 		ns.db.minimized and "minimized" or (ns.db.shown and "open" or "closed"),
 		ns.UI.fontSize(), math.floor(((ns.db.opacity or 0.85) * 100) + 0.5)))
 	line(("friends online: %d, messages waiting to send: %d"):format(ns.Room.onlineCount(), ns.Comm.queued()))
-	line(("boss-fight chat lock: %s, reportable (logged) messages: %s"):format(
-		ns.lockdown() and "on" or "off", ns.Comm.usingLogged() and "yes" or "no"))
+	-- The flag and an actual refusal are different things: the client can say chat is
+	-- restricted while our whispers still get through.
+	line(("chat restricted flag: %s, actually being refused: %s"):format(
+		ns.lockdown() and "on" or "off", ns.Comm.lockedOut and "yes" or "no"))
+	line(("reportable (logged) messages: %s"):format(ns.Comm.usingLogged() and "yes" or "no"))
 end
 
 -- Said once, the first time Hangout loads on an account.
