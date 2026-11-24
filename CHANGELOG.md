@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `/ho bntest` checks what can get through in a battleground or boss fight. It sends a test message to each online Battle.net friend both ways Hangout could use: as Battle.net addon data and as a normal hidden whisper. It then prints what the game said to each, and friends with this version see which ones arrived.
+
 ## 1.2.1
 
 - Hangout no longer refuses to send just because the client flags chat as restricted. It tries, and only backs off when the server actually turns the message away, so anything the restriction doesn't really cover now gets through.

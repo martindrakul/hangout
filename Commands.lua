@@ -45,6 +45,7 @@ local function help()
 	line("|cffffffff/ho cleanup <name>|r  leave all channels starting with <name>")
 	line("|cffffffff/ho fixchat|r  what to do when channels are greyed out")
 	line("|cffffffff/ho status|r  connection details")
+	line("|cffffffff/ho bntest [name]|r  test what gets through in a battleground or boss fight")
 end
 Commands.help = help
 
@@ -164,6 +165,47 @@ local function status()
 	line(("chat restricted flag: %s, actually being refused: %s"):format(
 		ns.lockdown() and "on" or "off", ns.Comm.lockedOut and "yes" or "no"))
 	line(("reportable (logged) messages: %s"):format(ns.Comm.usingLogged() and "yes" or "no"))
+end
+
+-- A room member's full name for a Battle.net friend's character. Battle.net may only
+-- give the first name, so a match on the start of the full name counts too.
+local function memberNameFor(characterName)
+	if not ns.readable(characterName) or characterName == "" then return nil end
+	local short = strlower(characterName)
+	for _, r in ipairs(ns.Room.ordered()) do
+		for _, m in ipairs(ns.Room.members(r.id)) do
+			if not m.me and (m.key == short or m.key:sub(1, #short + 1) == short .. " ") then return m.name end
+		end
+	end
+	return nil
+end
+
+-- Run inside a battleground or boss fight: sends a Battle.net data message and a hidden
+-- whisper to each online Battle.net friend and prints what the game answered.
+local function bnTest(filter)
+	ns.print("Battleground / boss fight test. " .. ns.Comm.restrictionSummary())
+	local friends = ns.Comm.bnFriendsInGame()
+	if #friends == 0 then
+		line("None of your Battle.net friends are online in WoW Forever right now, so there's nobody to test with.")
+		return
+	end
+	filter = strlower(strtrim(filter or ""))
+	local tested = 0
+	for _, f in ipairs(friends) do
+		local name = ns.readable(f.name) and f.name or "?"
+		if tested < 5 and (filter == "" or strlower(name):find(filter, 1, true)) then
+			tested = tested + 1
+			local target = memberNameFor(f.name)
+			local bn, whisper = ns.Comm.probe(f.id, target)
+			local shown = (target and target ~= name) and (name .. " (" .. target .. ")") or name
+			line(("%s: Battle.net %s, hidden whisper %s"):format(shown, bn, whisper))
+		end
+	end
+	if tested == 0 then
+		line(("No online Battle.net friend matches \"%s\"."):format(filter))
+		return
+	end
+	line("Friends with this version of Hangout see which test messages reached them.")
 end
 
 -- Said once, the first time Hangout loads on an account.
@@ -287,6 +329,8 @@ SlashCmdList.HANGOUT = function(msg)
 		ns.UI.resetPosition()
 	elseif cmd == "status" then
 		status()
+	elseif cmd == "bntest" then
+		bnTest(rest)
 	elseif cmd == "debug" then
 		ns.db.debug = not ns.db.debug
 		ns.print(("Debug: %s"):format(ns.db.debug and "on" or "off"))

@@ -221,6 +221,85 @@ function Comm.selfTest()
 	ns.debug("logged self-test sent (%s, %s)", tostring(ok), tostring(result))
 end
 
+-- Battleground / boss-fight test ------------------------------------------------------
+-- During those, WoW refuses addon whispers (AddOnMessageLockdown). Typed chat still
+-- goes, because Blizzard's own chat box sends it, not an addon. What we don't know yet
+-- is whether Battle.net addon data between Battle.net friends is refused too, so
+-- /ho bntest sends one of each and reports what the game said.
+
+local resultNames
+function Comm.resultName(r)
+	if r == nil then return "no answer" end
+	if r == true or r == R_SUCCESS then return "Success" end
+	if not resultNames then
+		resultNames = {}
+		for name, value in pairs(Result) do resultNames[value] = name end
+	end
+	return resultNames[r] or tostring(r)
+end
+
+function Comm.restrictionSummary()
+	local active = {}
+	local types = Enum and Enum.AddOnRestrictionType
+	if types and C_RestrictedActions and C_RestrictedActions.IsAddOnRestrictionActive then
+		for name, value in pairs(types) do
+			local ok, on = pcall(C_RestrictedActions.IsAddOnRestrictionActive, value)
+			if ok and on then active[#active + 1] = name end
+		end
+		table.sort(active)
+	end
+	return ("chat restricted flag %s, active restrictions: %s"):format(
+		ns.lockdown() and "on" or "off", #active > 0 and table.concat(active, ", ") or "none")
+end
+
+-- Battle.net friends who are online in this version of WoW right now.
+function Comm.bnFriendsInGame()
+	local out = {}
+	if not (BNGetNumFriends and C_BattleNet and C_BattleNet.GetFriendNumGameAccounts) then return out end
+	local total = BNGetNumFriends() or 0
+	for i = 1, total do
+		for j = 1, (C_BattleNet.GetFriendNumGameAccounts(i) or 0) do
+			local g = C_BattleNet.GetFriendGameAccountInfo(i, j)
+			if g and g.isOnline and g.gameAccountID and g.clientProgram == BNET_CLIENT_WOW
+				and (not WOW_PROJECT_ID or g.wowProjectID == WOW_PROJECT_ID) then
+				out[#out + 1] = { id = g.gameAccountID, name = g.characterName, guid = g.playerGuid }
+			end
+		end
+	end
+	return out
+end
+
+local probeNonce
+
+-- Sends one Battle.net data message and one normal addon whisper. Returns the game's
+-- answer to each (whisperTarget may be nil to skip the whisper).
+function Comm.probe(gameAccountID, whisperTarget)
+	probeNonce = probeNonce or ns.randomId(5)
+	local bn, whisper = "not available", "skipped"
+	if C_BattleNet and C_BattleNet.SendGameData then
+		local ok, r = pcall(C_BattleNet.SendGameData, gameAccountID, Comm.PREFIX_CTRL, "0:1:1:PB~" .. probeNonce)
+		bn = ok and Comm.resultName(r) or ("error: " .. tostring(r))
+	end
+	if whisperTarget then
+		local key = ns.key(whisperTarget)
+		if key then recentlyWhispered[key] = GetTime() end
+		local ok, r = pcall(C_ChatInfo.SendAddonMessage, Comm.PREFIX_CTRL, "0:1:1:PW~" .. probeNonce, "WHISPER", whisperTarget)
+		whisper = ok and Comm.resultName(r) or ("error: " .. tostring(r))
+	end
+	return bn, whisper
+end
+
+local function probeArrived(how, from)
+	ns.print(("Test message from %s arrived %s. (%s)"):format(from or "someone", how, Comm.restrictionSummary()))
+end
+
+ns.on("BN_CHAT_MSG_ADDON", function(prefix, text, _, senderID)
+	if prefix ~= Comm.PREFIX_CTRL or not ns.readable(text) then return end
+	if not text:match("^%w+:1:1:PB~%w+$") then return end
+	local info = C_BattleNet and C_BattleNet.GetGameAccountInfoByID and C_BattleNet.GetGameAccountInfoByID(senderID)
+	probeArrived("over Battle.net", info and info.characterName)
+end)
+
 local handlers = {}
 
 function Comm.listen(prefix, fn)
@@ -254,6 +333,7 @@ local function onAddonMessage(event, prefix, text, channel, sender)
 	end
 
 	if total == 1 then
+		if body:match("^PW~%w+$") then return probeArrived("as a hidden whisper", sender) end
 		deliver(prefix, body, sender, senderKey)
 		return
 	end

@@ -41,6 +41,18 @@ local function deliver(client, event, ...)
 	schedule(clock + 0.05, function() client.fire(event, unpack(args)) end)
 end
 
+-- Battle.net addon data between Battle.net friends (gameAccountID -> client).
+function server.bnSend(from, id, prefix, data)
+	if from.lockdown and server.bnBlockedInLockdown then return 11 end
+	for _, to in pairs(clients) do
+		if to.gameAccountID == id and to.online then
+			if to.prefixes[prefix] then deliver(to, "BN_CHAT_MSG_ADDON", prefix, data, "WHISPER", from.gameAccountID) end
+			return 0
+		end
+	end
+	return 0
+end
+
 function server.send(from, prefix, text, kind, target, logged)
 	assert(kind == "WHISPER", "only whispers expected, got " .. tostring(kind))
 	assert(#text <= 255, "addon message too long: " .. #text)
@@ -112,6 +124,9 @@ local function newClient(first, last, class, withTE, seed)
 	local c = { withTE = withTE, name = first .. " " .. last, online = true, lockdown = false, instance = false,
 		prefixes = {}, registered = {}, filters = {}, printed = {}, overrides = {}, frames = {} }
 	c.key = c.name:lower()
+	c.first = first
+	server.nextGameAccount = (server.nextGameAccount or 100) + 1
+	c.gameAccountID = server.nextGameAccount
 	clients[c.key] = c
 
 	local env = {}
@@ -233,6 +248,36 @@ local function newClient(first, last, class, withTE, seed)
 			if c.lockdownFlag ~= nil then return c.lockdownFlag end
 			return c.lockdown
 		end,
+	}
+	-- Battle.net friends: every other client with .bn set, when this one has it too.
+	local function bnList()
+		local list = {}
+		for _, other in pairs(clients) do
+			if other ~= c and other.bn and c.bn then list[#list + 1] = other end
+		end
+		table.sort(list, function(a, b) return a.name < b.name end)
+		return list
+	end
+	env.BNET_CLIENT_WOW = "WoW"
+	env.WOW_PROJECT_ID = 99
+	env.BNGetNumFriends = function() return #bnList() end
+	env.C_BattleNet = {
+		GetFriendNumGameAccounts = function(i) return bnList()[i] and 1 or 0 end,
+		GetFriendGameAccountInfo = function(i)
+			local o = bnList()[i]
+			if not o then return nil end
+			return { gameAccountID = o.gameAccountID, isOnline = o.online, clientProgram = "WoW",
+				wowProjectID = 99, characterName = o.first, playerGuid = "Player-1-" .. o.gameAccountID }
+		end,
+		GetGameAccountInfoByID = function(id)
+			for _, o in pairs(clients) do
+				if o.gameAccountID == id then return { characterName = o.first } end
+			end
+		end,
+		SendGameData = function(id, prefix, data) return server.bnSend(c, id, prefix, data) end,
+	}
+	env.C_RestrictedActions = {
+		IsAddOnRestrictionActive = function(t) return c.lockdown and (t == 5 or t == 3) end,
 	}
 	env.ChatFrameUtil = {
 		AddMessageEventFilter = function(event, fn)
@@ -990,6 +1035,38 @@ check(C.ns.Room.byName("Team One") == nil, "declining leaves you out of the room
 print("room limit")
 for i = 1, 10 do slash(A, "HANGOUT", "create Spare " .. i) end
 check(A.ns.Room.count() == A.ns.Room.MAX_ROOMS, ("no more than %d rooms"):format(A.ns.Room.MAX_ROOMS))
+
+print("battleground test command (/ho bntest)")
+local function newLines(c, mark) return table.concat(c.chat._lines, "\n", 1, #c.chat._lines - mark) end
+A.bn, C.bn = true, true
+A.lockdown = true
+server.bnBlockedInLockdown = false
+local markA, markC = #A.chat._lines, #C.chat._lines
+slash(A, "HANGOUT", "bntest")
+advance(1)
+local report = newLines(A, markA)
+check(report:find("Lyra (Lyra Brightwater): Battle.net Success, hidden whisper 11", 1, true) ~= nil
+	or report:find("Lyra (Lyra Brightwater): Battle.net Success, hidden whisper AddOnMessageLockdown", 1, true) ~= nil,
+	"report shows Battle.net went out and the whisper was refused")
+local heard = newLines(C, markC)
+check(heard:find("arrived over Battle.net", 1, true) ~= nil, "C hears the Battle.net test")
+check(heard:find("as a hidden whisper", 1, true) == nil, "the refused whisper never arrives")
+server.bnBlockedInLockdown = true
+markA = #A.chat._lines
+slash(A, "HANGOUT", "bntest lyra")
+advance(1)
+check(newLines(A, markA):find("Battle.net 11", 1, true) or newLines(A, markA):find("Battle.net AddOnMessageLockdown", 1, true),
+	"if Battle.net is refused too, the report says so")
+A.lockdown = false
+markC = #C.chat._lines
+slash(A, "HANGOUT", "bntest")
+advance(1)
+heard = newLines(C, markC)
+check(heard:find("over Battle.net", 1, true) and heard:find("as a hidden whisper", 1, true), "outside a fight both arrive")
+local markB = #B.chat._lines
+slash(B, "HANGOUT", "bntest")
+check(newLines(B, markB):find("None of your Battle.net friends", 1, true) ~= nil, "no Battle.net friends: says so")
+A.bn, C.bn = nil, nil
 
 print(("\n%d passed, %d failed"):format(passed, failed))
 os.exit(failed == 0 and 0 or 1)
