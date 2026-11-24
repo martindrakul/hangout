@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.2.2
 
 - `/ho bntest` checks what can get through in a battleground or boss fight. It sends a test message to each online Battle.net friend both ways Hangout could use: as Battle.net addon data and as a normal hidden whisper. It then prints what the game said to each, and friends with this version see which ones arrived.
 
